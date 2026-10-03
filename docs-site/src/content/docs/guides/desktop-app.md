@@ -66,6 +66,11 @@ if it fails, use **Retry** to resolve the current runtime again.
 
 On macOS, closing the dashboard keeps the app running in the menu bar. Open OpenCodex again from Dock or Finder to restore the dashboard without restarting the proxy.
 
+On Windows, **Start at Login** quotes the executable path in the current-user startup
+registration, including installations under `Program Files`. Previously enabled
+registrations are updated once on launch. Startup entries you disabled in the tray
+or Task Manager remain disabled.
+
 ## Startup safety on macOS
 
 Startup safety reports **Desktop app** protection when OpenCodex's recorded ownership,

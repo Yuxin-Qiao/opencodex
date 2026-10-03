@@ -349,8 +349,12 @@ that is not running has no menu bar item, so leaving autostart off by default le
 installed app absent after a reboot. The marker in the app config directory is written
 before the login item is touched and is never removed, so a user who turns the setting
 off keeps it off; writing it afterwards would let a failed enable retry on every launch.
-The behaviour is not macOS-only — the autostart plugin implements the Linux autostart
-entry and the current-user Windows Run registration too.
+The behaviour is not macOS-only. The autostart plugin implements the macOS and Linux
+registrations and reads or disables the current-user Windows Run entry. Shell enables
+on Windows write a quoted executable path followed by `--autostart`, preserving the
+plugin's registration name and Task Manager explicit-enable semantics. A Windows-specific
+launch-origin migration marker revisits older registrations once, only when already
+enabled; entries disabled in the tray or Task Manager stay disabled.
 
 The WidgetKit extension in `app/` needs three things that Xcode's app-extension target
 would supply on its own, and SwiftPM has no such target: `@main` on
