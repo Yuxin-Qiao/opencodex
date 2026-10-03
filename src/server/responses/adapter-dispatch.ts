@@ -1,5 +1,8 @@
 import { classifyAnthropic429 } from "../../oauth/anthropic-rate-limit-policy";
 import { rotateAnthropicAccountOnResponse } from "../../oauth/anthropic-account-refusal";
+import { authorizeResendForRecovery } from "../../lib/request-resend-gate";
+import { ambiguousResendAllowanceFor, selfContainedResponsesBody } from "./reset-replay";
+import { transientSendCapFor } from "./request-send-budget";
 import { isNonReplayableResponse } from "../../lib/upstream-retry";
 import { isLocalUpstream } from "../../lib/local-upstream";
 import type { ResponsesRequestContext, ResponsesAdmissionState } from "./core-options";
@@ -25,6 +28,7 @@ import { withProviderRequestSlot } from "../../providers/request-pacing";
 import { providerFetch, fetchWithHeaderTimeout, safeHostLabel } from "./fetch-helpers";
 import {
   transientRetryPolicyFor,
+  resetReplayPolicyFor,
   rateLimitRetryPolicyFor,
   hasKeyPoolFailover,
   rotateProviderTransportOn401,
@@ -156,6 +160,8 @@ export async function prepareAdapterExchange(
     | "reserveCredentialHop"
     | "pendingHopPermit"
     | "workflowRootId"
+    | "claimAmbiguousResend"
+    | "sendsUsed"
   >,
 ) {
   const { options, config, logCtx, req } = requestContext;
@@ -189,8 +195,17 @@ export async function prepareAdapterExchange(
     recoveryClassFor,
     sendBudgetExhausted,
     reserveCredentialHop,
+    claimAmbiguousResend,
   } = sendBudgetState;
 
+
+  let selfContainedJudgment: boolean | undefined;
+  const requestIsSelfContained = (): boolean =>
+    selfContainedJudgment ??= selfContainedResponsesBody(parsed._rawBody);
+  const claimPreHeaderResend = (): boolean => authorizeResendForRecovery(
+    "pre-header", "connection-reset",
+    ambiguousResendAllowanceFor(route.provider, requestIsSelfContained, claimAmbiguousResend),
+  ).allowed;
 
   const upstream = new AbortController();
   const cleanupUpstreamAbort = linkAbortSignal(upstream, options.abortSignal);
@@ -367,6 +382,7 @@ export async function prepareAdapterExchange(
         {
           abortSignal: upstream.signal,
           label: safeHostLabel(builtInitialRequest.url),
+          claimAmbiguousResend: claimPreHeaderResend,
           ...(transientPolicy || compactPrepaid
             // Draws the remainder, not the raw policy. A combo child inherits the parent's
             // holder but used to take a fresh full allowance on its own first send, so the
@@ -378,7 +394,10 @@ export async function prepareAdapterExchange(
                 remainingTransientSendBudget(transientPolicy?.attempts ?? 1) + (compactPrepaid ? 1 : 0)),
               onSendsConsumed: noteTransientSends,
             }
-            : {}),
+            : resetReplayPolicyFor(route.provider) ? {
+              attempts: remainingTransientSendBudget(transientSendCapFor(undefined, sendBudgetState.sendsUsed)),
+              onSendsConsumed: noteTransientSends,
+            } : {}),
         },
       );
     }
@@ -548,9 +567,9 @@ export async function prepareAdapterExchange(
           // Same rule as the passthrough rebuild: spend the base allowance first, then the one
           // shared final-recovery reserve, so a recovery that follows a spent streak still gets
           // its single send instead of dying at three.
-          const refetchAllowance = refetchTransientPolicy
+          const refetchAllowance = refetchTransientPolicy || resetReplayPolicyFor(route.provider)
             ? recoverySendAllowance(
-              refetchTransientPolicy.attempts,
+              refetchTransientPolicy?.attempts ?? transientSendCapFor(undefined, sendBudgetState.sendsUsed),
               recoveryClassFor(recovery),
               `${route.providerName}|${route.modelId}|${recovery}`,
             )
@@ -566,7 +585,7 @@ export async function prepareAdapterExchange(
                 // can be refused above before it does. use() past the first attempt is a no-op.
                 onDispatch?.();
                 if (preserveFailureResponse) replacementAdmitted = true;
-                if (!refetchTransientPolicy) chargeFastDowngradeWorkflowSend();
+                if (!refetchAllowance) chargeFastDowngradeWorkflowSend();
                 return fetchWithHeaderTimeout(retryRequest.url,
                   applyUpstreamRecoveryInit({
                     method: retryRequest.method, headers: retryRequest.headers, body: retryRequest.body,
@@ -580,6 +599,7 @@ export async function prepareAdapterExchange(
               {
                 abortSignal: upstream.signal,
                 label: safeHostLabel(retryRequest.url),
+                claimAmbiguousResend: claimPreHeaderResend,
                 ...(refetchAllowance
                   ? {
                     attempts: refetchAllowance.attempts,

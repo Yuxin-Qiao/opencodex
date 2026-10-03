@@ -83,7 +83,7 @@ counter rather than holding a second. A replacement never widens a send budget: 
 fit inside the allowance the leg already had, and it is charged to the same counter every other
 send goes through.
 
-The number of replacements is the request's as well. A leg reads it from `route.provider`, which
+Translated Responses-to-chat dispatch asks the same pre-header gate for initial and rebuilt sends, charging opted-in sends to the shared budget; post-header translated-stream recovery and adapter-owned fetch policies are outside this opt-in. The number of replacements is the request's as well. A leg reads it from `route.provider`, which
 credential rotation, OAuth refresh, transport resolution and each combo target reassign inside one
 request, so the grant is held to the smallest ceiling any leg has presented rather than to
 whatever the asking leg presents. Otherwise a request that had already spent the one replacement a

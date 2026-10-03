@@ -1012,7 +1012,7 @@ export interface OcxProviderConfig {
   /**
    * Opt-in replacement of a native Responses send that died while the caller had observed
    * nothing (`providers.<name>.retryOnReset`). Disabled unless present; a bare `{}` opts in
-   * with defaults. Native Responses sends only, and only for self-contained requests.
+   * with defaults. Includes pre-header translated Responses-to-chat sends; only self-contained requests.
    */
   retryOnReset?: ResetReplayPolicy;
   /**
