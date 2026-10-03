@@ -198,7 +198,7 @@ The User-Agent is a routing hint, not a trust boundary: a client that fakes it r
 any local process already reaches (the `api.anthropic.com` intercept is on the Claude Code proxy
 too; the `claude.ai` relay verifies upstream and adds no credential) and breaks only its own TLS,
 because each terminator presents a certificate only its intended client trusts. `claude.ai:443` is
-terminated by a `node:https` HTTP/1.1 relay (`picker-listener.ts`) only while the runtime's cached
+terminated by a `node:https` HTTP/1.1 relay (`picker-listener.ts`), with a bounded 64 KiB request/response header allowance for browser session cookies, only while the runtime's cached
 decision is armed: macOS, persisted resolved Desktop mode first-party, Desktop intent on,
 `claudeCode.intercept.picker !== false`, no disarm latch, listener up, and the current picker CA
 trusted in the login keychain (`picker-trust.ts`). The picker CA (`picker-ca.ts`) carries critical
@@ -510,3 +510,7 @@ Native passthrough retains upstream `anthropic-ratelimit-*` response headers for
 A native passthrough answered without a stream records its reason in `upstreamError`, so the row and the failure diagnostics in usage.jsonl name the cause. An upstream error response (status 400 or above) is relayed verbatim; the stored diagnostic is `Provider error <status>: <type>` only for a valid Anthropic error envelope with one of the closed types `invalid_request_error`, `authentication_error`, `permission_error`, `not_found_error`, `rate_limit_error`, `api_error`, `overloaded_error` or `request_too_large`. Upstream messages and arbitrary type strings never enter this diagnostic. Unknown or malformed envelopes, non-JSON bodies and bodies over 64 Ki characters log `Provider error <status>`. Local header timeout, body stall, byte-cap overflow and cancel diagnostics contain fixed text plus validated guard limits. Fetch failures log the fixed reason `anthropic passthrough failed: upstream connection error`; the existing redacted client response is preserved. Classification uses these stored reasons and HTTP status, so a `permission_error` at 403 is `permission_denied` regardless of upstream message wording. `tests/claude-integration/claude-native-passthrough.test.ts` covers these cases and checks that echoed account identifiers and request content are absent from both history sinks.
 
 Linked-machine data uses the [connection-bound relay contract](../remote-link.md#connection-bound-relay-authentication); client-local credentials and routing policy remain unchanged.
+
+The picker relays ordinary large session headers unchanged within that bound. An upstream
+header overflow remains a 502 and logs `upstream:headers-too-large`, without header values
+or request paths; bootstrap rewriting and upstream certificate verification stay unchanged.

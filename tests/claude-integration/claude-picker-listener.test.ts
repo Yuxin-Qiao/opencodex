@@ -3,7 +3,7 @@ import { createServer, request } from "node:https";
 import { connect as tlsConnect } from "node:tls";
 import { gzipSync } from "node:zlib";
 import { createLocalInterceptCa, issueLocalInterceptLeaf } from "../../src/claude/intercept/local-ca";
-import { startPickerListener } from "../../src/claude/intercept/picker-listener";
+import { PICKER_MAX_HEADER_BYTES, startPickerListener } from "../../src/claude/intercept/picker-listener";
 import type { PickerListenerHandle } from "../../src/claude/intercept/picker-listener";
 import type { Server as HttpsServer } from "node:https";
 import type { IncomingMessage } from "node:http";
@@ -23,7 +23,7 @@ async function fixture(
   const upstreamCa = options.untrusted ? createLocalInterceptCa() : ca;
   const leaf = issueLocalInterceptLeaf(ca, ["claude.ai"]);
   const upstreamLeaf = issueLocalInterceptLeaf(upstreamCa, ["claude.ai"]);
-  const upstream = createServer({ cert: upstreamLeaf.certPem, key: upstreamLeaf.keyPem }, handler);
+  const upstream = createServer({ cert: upstreamLeaf.certPem, key: upstreamLeaf.keyPem, maxHeaderSize: PICKER_MAX_HEADER_BYTES }, handler);
   await new Promise<void>(resolve => upstream.listen(0, "127.0.0.1", resolve));
   const address = upstream.address();
   if (!address || typeof address === "string") throw new Error("upstream port missing");
@@ -45,7 +45,7 @@ async function fixture(
 function clientRequest(relay: PickerListenerHandle, ca: string, path: string, method = "GET"): Promise<ResponseData> {
   return new Promise((resolve, reject) => {
     const req = request({ host: "127.0.0.1", port: relay.port, servername: "claude.ai", ca,
-      rejectUnauthorized: true, path, method, headers: { Host: "claude.ai" }, agent: false }, res => {
+      rejectUnauthorized: true, path, method, headers: { Host: "claude.ai" }, agent: false, maxHeaderSize: PICKER_MAX_HEADER_BYTES }, res => {
       const chunks: Buffer[] = [];
       res.on("data", chunk => chunks.push(chunk));
       res.on("end", () => resolve({ status: res.statusCode!, headers: res.headers,
@@ -84,7 +84,7 @@ test("SSE first chunk reaches the client before upstream end", async () => {
   try {
     const first = new Promise<string>((resolve, reject) => {
       const req = request({ host: "127.0.0.1", port: f.relay.port, servername: "claude.ai", ca: f.ca,
-        path: "/events", headers: { Host: "claude.ai" }, agent: false }, res => {
+        path: "/events", headers: { Host: "claude.ai" }, agent: false, maxHeaderSize: PICKER_MAX_HEADER_BYTES }, res => {
         res.once("data", chunk => resolve(chunk.toString()));
       });
       req.on("error", reject);
@@ -208,5 +208,61 @@ test("ordinary request method, body and headers relay upstream", async () => {
     expect(received.body.toString()).toBe("ok");
     expect(observed).toEqual({ method: "POST", header: "retained", body: "payload" });
     expect(f.logs).toEqual(["picker POST other 201"]);
+  } finally { await f.close(); }
+});
+
+
+test("ordinary large response cookies relay without becoming a 502", async () => {
+  const cookie = "session=" + "x".repeat(24 * 1024) + "; HttpOnly; Secure";
+  const f = await fixture((_req, res) => {
+    res.writeHead(200, { "Set-Cookie": cookie });
+    res.end("ok");
+  });
+  try {
+    const received = await f.get("/api/organizations/synthetic/chat_conversations");
+    expect(received.status).toBe(200);
+    expect(received.headers["set-cookie"]).toEqual([cookie]);
+    expect(received.body.toString()).toBe("ok");
+  } finally { await f.close(); }
+});
+
+
+test("response headers over the bounded picker limit still fail closed", async () => {
+  const f = await fixture((_req, res) => {
+    res.writeHead(200, { "Set-Cookie": "session=" + "x".repeat(PICKER_MAX_HEADER_BYTES) });
+    res.end("must not arrive");
+  });
+  try {
+    const received = await f.get("/api/organizations/synthetic/chat_conversations");
+    expect(received.status).toBe(502);
+    expect(received.body.length).toBe(0);
+    expect(f.logs).toEqual(["picker GET other upstream:headers-too-large", "picker GET other 502"]);
+  } finally { await f.close(); }
+});
+
+test("ordinary large request cookies and POST body reach upstream unchanged", async () => {
+  const cookie = "session=" + "x".repeat(24 * 1024);
+  let observed: string | undefined;
+  let body = "";
+  const f = await fixture((req, res) => {
+    observed = req.headers.cookie;
+    req.on("data", chunk => { body += chunk.toString(); });
+    req.on("end", () => res.end("ok"));
+  });
+  try {
+    const status = await new Promise<number>((resolve, reject) => {
+      const req = request({ host: "127.0.0.1", port: f.relay.port, servername: "claude.ai", ca: f.ca,
+        rejectUnauthorized: true, path: "/api/organizations/synthetic/chat_conversations", method: "POST", agent: false,
+        headers: { Host: "claude.ai", Cookie: cookie, "Content-Length": "7" } }, res => {
+        res.resume();
+        res.on("end", () => resolve(res.statusCode!));
+        res.on("error", reject);
+      });
+      req.on("error", reject);
+      req.end("payload");
+    });
+    expect(status).toBe(200);
+    expect(observed).toBe(cookie);
+    expect(body).toBe("payload");
   } finally { await f.close(); }
 });
