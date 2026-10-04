@@ -344,6 +344,7 @@
   "claude-auth-mode.test.ts": "claude-integration",
   "claude-authmode-migration.test.ts": "claude-integration",
   "claude-agent-sdk-adapter.test.ts": "providers",
+  "claude-agent-sdk-structured-output.test.ts": "providers",
   "claude-provider-rename-migration.test.ts": "providers",
   "claude-cli.test.ts": "claude-integration",
   "claude-config-first-party.test.ts": "cli",

@@ -286,3 +286,5 @@ Dashboard Fast-row persistence and client refresh follow the [Fast selector rows
 The registered Devin implementation in `src/adapters/devin.ts` maps data URLs to its native image field. Its textual fallback accepts only bounded HTTPS references and emits a fixed-size omission marker for unsupported or oversized values.
 
 A [compaction routing override](../transports/responses-failover.md#compaction-routing-overrides) selects its target before adapter resolution and uses the existing registry factory.
+
+Claude Agent SDK schema output is owned by `src/adapters/claude-agent-sdk/structured-output.ts`: bounded Draft-07 schemas are compiled without coercion/defaults or remote references; unsupported regex/format constraints fail before the SDK loads. Only validated `structured_output` becomes final JSON, after harness teardown. Intermediate prose and internal formatting tool blocks are withheld; external capture-only tool legs still return caller calls and accept replayed tool results. Other coding-agent mappers are unchanged.

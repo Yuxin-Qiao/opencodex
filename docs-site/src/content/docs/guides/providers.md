@@ -1056,6 +1056,21 @@ OpenCodex provides official adapter support for Qoder through the `qoder` (Globa
 
 ### Claude Agent SDK (subscription)
 
+**Structured output (pending the Agent SDK adapter integration):** Responses
+`text.format.type: "json_schema"` is passed to the SDK with the original schema.
+Final JSON is returned only after local validation and harness cleanup; intermediate
+prose is withheld. External tools remain capture-only: the caller executes a
+returned call, then replays the conversation and matching tool result for the final
+JSON turn. Offline adapter fixtures cover this flow; live Codex app-server
+acceptance has not been established.
+
+Schemas use Draft-07, with a 64 KiB size, 32-level depth and 1,024-schema-node
+limit. Regex (`pattern`, `patternProperties`), `format`, async and remote-reference
+constraints, unknown keywords and `json_object` fail explicitly before SDK loading.
+Constraints are never removed to make a schema acceptable. Missing/invalid output
+fails without a successful completion; final serialized JSON is limited to 8 MiB.
+
+
 > **Where this preset comes from, stated plainly.** The version that shipped in 2.65.0 was
 > **against Anthropic's terms**: OpenCodex built a one-shot `claude -p` turn, replaced the harness
 > system prompt with the caller's, dropped the session and stripped the harness's tools, then let a

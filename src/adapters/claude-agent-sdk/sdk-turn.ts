@@ -48,6 +48,7 @@ import {
   type HarnessTreeKillFn,
 } from "./harness-process";
 import type { ClaudeCliProfile } from "./profiles";
+import { StructuredOutput } from "./structured-output";
 import { buildAgentSdkTurnOptions } from "./sdk-options";
 
 /** The Agent SDK surface this adapter uses; narrow on purpose, so the test seam stays small. */
@@ -204,6 +205,10 @@ export async function runClaudeAgentSdkTurn(input: ClaudeAgentSdkTurnInput): Pro
     }
   }
 
+  let structured: StructuredOutput | undefined;
+  try { if (parsed.options.textFormat) structured = new StructuredOutput(parsed.options.textFormat); }
+  catch { emit({ type: "error", message: "Invalid or unsupported Claude structured-output schema.", status: 400,
+    errorType: "invalid_request_error", code: "structured_output_schema_invalid", retryable: false }); return; }
   const loadSdk = deps.loadSdk ?? loadClaudeAgentSdkModule;
   let sdk: ClaudeAgentSdkModule;
   try {
@@ -357,10 +362,6 @@ export async function runClaudeAgentSdkTurn(input: ClaudeAgentSdkTurnInput): Pro
   let query: ClaudeAgentSdkQuery | undefined;
   let streamError: string | undefined;
   let streamProtocolCode: string | undefined;
-  // A successful result frame that arrived after every captured tool call completed but before
-  // message_stop: the leg still ends with the synthesized done(tool_use) at message_stop, so this
-  // frame's usage (authoritative vendor accounting) is folded into the synthesis instead of ending
-  // the turn as a text completion the client would accept and then wait on.
   let deferredResultDone: Extract<AdapterEvent, { type: "done" }> | undefined;
   let initValidated = false;
 
@@ -386,7 +387,8 @@ export async function runClaudeAgentSdkTurn(input: ClaudeAgentSdkTurnInput): Pro
       ]);
       if (next.kind === "aborted") break;
       if (next.result === undefined || next.result.done === true) break;
-      const message = next.result.value;
+      const message = structured ? structured.frame(next.result.value) : next.result.value;
+      if (!message) continue;
       if (incoming.abortSignal?.aborted) break;
       if (toolBridge) {
         const initError = toolBridgeInitError(message, toolBridge.serverName);
@@ -403,7 +405,8 @@ export async function runClaudeAgentSdkTurn(input: ClaudeAgentSdkTurnInput): Pro
         }
         if (message.type === "system" && message.subtype === "init") initValidated = true;
       }
-      const mappedEvents = mapStreamMessageToEvents(message, state);
+      const mapped = mapStreamMessageToEvents(message, state);
+      const mappedEvents = structured ? structured.events(message, state, mapped) : mapped;
       if (state.toolCallLimitExceeded) {
         // The parser refuses the start that would pass the ceiling before it allocates the block, so
         // this flag is the only signal that a call was dropped. Without it the turn would run on with
@@ -651,6 +654,10 @@ export async function runClaudeAgentSdkTurn(input: ClaudeAgentSdkTurnInput): Pro
       });
       return;
     }
+    if (structured && pendingTerminal.type === "done" && incoming.abortSignal?.aborted) {
+      emit({ type: "error", message: "Claude structured-output turn was aborted.", retryable: false }); return;
+    }
+    if (structured?.text !== undefined && pendingTerminal.type === "done") emit({ type: "text_delta", text: structured.text });
     emit(pendingTerminal);
   };
 
@@ -699,12 +706,6 @@ export async function runClaudeAgentSdkTurn(input: ClaudeAgentSdkTurnInput): Pro
       retryable: false,
     });
   }
-  // The one terminal frame this turn owes the client, delivered only now that the harness behind it
-  // is gone. The bridge closes the response body on this frame and that EOF releases the global
-  // turn-admission lease, so a frame emitted earlier would let the next turn start while a
-  // TERM-resistant harness is still being reaped.
   deliverTerminal();
-  // Bounded, and no longer on the client's clock: the SDK's generator unwinds on its own terms after
-  // the answer, and nothing of the turn is waiting on it but this line.
   await settleSdk();
 }

@@ -551,3 +551,5 @@ public request model. [Memory phase routing](transports/responses-failover.md#me
 owns the selection rule.
 
 Preflight heartbeat retention keeps `replayUnsafe` sticky in the replayed tail, so a second preflight cannot forget earlier side effects after the original marker is evicted.
+
+Claude Agent SDK schema output is owned by `src/adapters/claude-agent-sdk/structured-output.ts`: bounded Draft-07 schemas are compiled without coercion/defaults or remote references; unsupported regex/format constraints fail before the SDK loads. Only validated `structured_output` becomes final JSON, after harness teardown. Intermediate prose and internal formatting tool blocks are withheld; external capture-only tool legs still return caller calls and accept replayed tool results. Other coding-agent mappers are unchanged.

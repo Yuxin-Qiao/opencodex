@@ -108,6 +108,7 @@ export function buildAgentSdkTurnOptions(input: AgentSdkOptionInput): Options {
   const effort = buildAgentSdkEffort(provider, parsed);
   return {
     model: parsed.modelId,
+    ...(parsed.options.textFormat?.type === "json_schema" ? { outputFormat: { type: "json_schema" as const, schema: parsed.options.textFormat.schema! } } : {}),
     systemPrompt: buildAgentSdkSystemPrompt(parsed, toolCatalog !== undefined),
     tools: [],
     settingSources: [],
