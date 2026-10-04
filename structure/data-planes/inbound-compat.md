@@ -192,6 +192,12 @@ timer, turn, and translator ownership are released through the existing lifecycl
 
 ## HTTP caller conversation identity
 
+Canonical ChatGPT Responses egress additionally normalizes a safe caller `session-id`, then
+`thread-id`, to absent `session_id` in the selected auth headers. Original ingress headers,
+principal/affinity computation and noncanonical destinations remain unchanged; empty or invalid
+explicit aliases suppress weaker Claude metadata identity. No originator or cohort-derived
+conversation identity is invented.
+
 `src/server/caller-session-identity.ts` promotes validated `x-session-id` on HTTP Responses and Messages before turn admission in `src/server/index/serve-options.ts`. Explicit `session_id`, `session-id`, or `thread-id` presence wins, including empty values; managed Grok promotion runs first on Responses. The trimmed marker must start with an ASCII letter/digit, contain only letters, digits, dots, underscores, colons or hyphens, and stay within 128 characters. Loopback admission keeps it; authenticated admission scopes it with the trusted credential principal into an opaque SHA-256 identifier and skips promotion without that principal. Bodies and abort signals are preserved, and the original Request owns Bun timeout lookup. This provides continuity, not authorization or guaranteed cache hits. Existing explicit/Grok identities, Chat Completions, WebSocket frames, compact and count_tokens retain their behavior.
 
 ## Chat conversation identity forwarding
