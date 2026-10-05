@@ -2448,7 +2448,7 @@ export const en = {
   "codexAuth.resumeSucceeded": "{email} is available to the pool again",
   "codexAuth.pauseFailed": "Could not pause {email}. Nothing was changed.",
   "codexAuth.resumeFailed": "Could not resume {email}. Nothing was changed.",
-  "codexAuth.pausedHint": "Excluded from automatic switching, retries, cooldown recovery, and manual selection until resumed. Manual pause and resume also update existing main and pool entries for the same account and workspace.",
+  "codexAuth.pausedHint": "Excluded from automatic switching, retries, cooldown recovery, and manual selection until resumed.",
   "codexAuth.creditsAfterLimit": "Use credits after limit",
   "codexAuth.creditsAfterLimitHint": "Off by default: an account whose usage window reaches 100% is switched out until it resets, so its ChatGPT credits are not spent. Turn an account on to let it keep working from its credits. New accounts start off.",
   "codexAuth.creditsAfterLimitAria": "Use credits after the usage limit for {email}",

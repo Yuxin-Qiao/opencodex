@@ -2270,7 +2270,7 @@ export const ja: Record<TKey, string> = {
   "codexAuth.resumeSucceeded": "{email} をアカウントプールに戻しました",
   "codexAuth.pauseFailed": "{email} を一時停止できませんでした。変更はありません。",
   "codexAuth.resumeFailed": "{email} を再開できませんでした。変更はありません。",
-  "codexAuth.pausedHint": "再開するまで、自動切り替え、再試行、クールダウン復旧、手動選択の対象外です。 手動の一時停止と再開は、同じアカウント・ワークスペースのメインログインとプール内の既存エントリにも反映されます。",
+  "codexAuth.pausedHint": "再開するまで、自動切り替え、再試行、クールダウン復旧、手動選択の対象外です。",
   "codexAuth.creditsAfterLimit": "上限後にクレジットを使用",
   "codexAuth.creditsAfterLimitHint": "既定はオフです。使用量ウィンドウが100%に達したアカウントはリセットまで別のアカウントに切り替わり、ChatGPTクレジットを消費しません。オンにしたアカウントだけが上限後もクレジットで使われます。新しいアカウントはオフで始まります。",
   "codexAuth.creditsAfterLimitAria": "{email} の上限後クレジット使用",

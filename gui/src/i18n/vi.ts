@@ -2403,7 +2403,7 @@ export const vi: Record<TKey, string> = {
   "codexAuth.resumeSucceeded": "{email} đã có mặt lại trong pool",
   "codexAuth.pauseFailed": "Không thể ngưng {email}. Không có thay đổi nào.",
   "codexAuth.resumeFailed": "Không thể tiếp tục {email}. Không có thay đổi nào.",
-  "codexAuth.pausedHint": "Được loại trừ khỏi luân phiên tự động, thử lại, hồi phục sau thời gian chờ, và lựa chọn thủ công cho đến khi tiếp tục. Tạm dừng và tiếp tục thủ công cũng cập nhật các mục đăng nhập chính và nhóm hiện có của cùng tài khoản và không gian làm việc.",
+  "codexAuth.pausedHint": "Được loại trừ khỏi luân phiên tự động, thử lại, hồi phục sau thời gian chờ, và lựa chọn thủ công cho đến khi tiếp tục.",
   "codexAuth.creditsAfterLimit": "Dùng tín dụng sau giới hạn",
   "codexAuth.creditsAfterLimitHint": "Mặc định tắt: tài khoản có cửa sổ sử dụng đạt 100% sẽ được thay thế cho đến khi đặt lại, nên tín dụng ChatGPT của nó không bị tiêu. Bật một tài khoản để nó tiếp tục chạy bằng tín dụng. Tài khoản mới bắt đầu ở trạng thái tắt.",
   "codexAuth.creditsAfterLimitAria": "Dùng tín dụng sau giới hạn sử dụng cho {email}",

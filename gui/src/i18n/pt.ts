@@ -2422,7 +2422,7 @@ export const pt: Record<TKey, string> = {
   "codexAuth.resumeSucceeded": "{email} voltou a ficar disponível para o pool",
   "codexAuth.pauseFailed": "Não foi possível pausar {email}. Nada foi alterado.",
   "codexAuth.resumeFailed": "Não foi possível retomar {email}. Nada foi alterado.",
-  "codexAuth.pausedHint": "Excluída da troca automática, das novas tentativas, da recuperação de cooldown e da seleção manual até ser retomada. A pausa e a retomada manuais também atualizam as entradas principais e do pool existentes para a mesma conta e espaço de trabalho.",
+  "codexAuth.pausedHint": "Excluída da troca automática, das novas tentativas, da recuperação de cooldown e da seleção manual até ser retomada.",
   "codexAuth.creditsAfterLimit": "Usar créditos após o limite",
   "codexAuth.creditsAfterLimitHint": "Desativado por padrão: uma conta cuja janela de uso chega a 100% é retirada de uso até a janela reiniciar, para que seus créditos do ChatGPT não sejam gastos. Ative em uma conta para que ela continue trabalhando com seus créditos. Contas novas começam desativadas.",
   "codexAuth.creditsAfterLimitAria": "Usar créditos após o limite de uso para {email}",

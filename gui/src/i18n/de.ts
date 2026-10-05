@@ -1837,7 +1837,7 @@ export const de: Record<TKey, string> = {
   "codexAuth.resumeSucceeded": "{email} ist wieder im Pool verfügbar",
   "codexAuth.pauseFailed": "{email} konnte nicht pausiert werden. Es wurde nichts geändert.",
   "codexAuth.resumeFailed": "{email} konnte nicht fortgesetzt werden. Es wurde nichts geändert.",
-  "codexAuth.pausedHint": "Bis zur Fortsetzung von automatischem Wechsel, Wiederholungen, Cooldown-Wiederherstellung und manueller Auswahl ausgeschlossen. Manuelles Pausieren und Fortsetzen aktualisiert auch vorhandene Haupt- und Pool-Einträge desselben Kontos im selben Arbeitsbereich.",
+  "codexAuth.pausedHint": "Bis zur Fortsetzung von automatischem Wechsel, Wiederholungen, Cooldown-Wiederherstellung und manueller Auswahl ausgeschlossen.",
   "codexAuth.creditsAfterLimit": "Credits nach dem Limit nutzen",
   "codexAuth.creditsAfterLimitHint": "Standardmäßig aus: Ein Konto, dessen Nutzungsfenster 100 % erreicht, wird bis zum Zurücksetzen ausgewechselt, sodass seine ChatGPT-Credits nicht verbraucht werden. Schalte ein Konto ein, damit es mit seinen Credits weiterarbeitet. Neue Konten starten ausgeschaltet.",
   "codexAuth.creditsAfterLimitAria": "Credits nach dem Nutzungslimit nutzen für {email}",
