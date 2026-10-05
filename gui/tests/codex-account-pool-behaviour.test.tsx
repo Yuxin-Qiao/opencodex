@@ -26,6 +26,7 @@ let usageAccounts: unknown[] = [];
 let threshold = 80;
 let nextAccountsResponseGate: Promise<void> | null = null;
 let pauseResponseActiveId: string | null = null;
+let pauseAffectedAccountIds: string[] | undefined;
 let bulkPausedAccountIds: string[] = ["a2"];
 let bulkResponseActiveId: string | null = null;
 let priorityResponseOk = true;
@@ -54,6 +55,7 @@ beforeEach(() => {
   calls = [];
   nextAccountsResponseGate = null;
   pauseResponseActiveId = null;
+  pauseAffectedAccountIds = undefined;
   bulkPausedAccountIds = ["a2"];
   bulkResponseActiveId = null;
   priorityResponseOk = true;
@@ -132,14 +134,15 @@ beforeEach(() => {
         nextPauseResponseGate = null;
         if (gate) await gate;
         const body = JSON.parse(String(init?.body)) as { id: string; paused: boolean };
+        const affectedIds = new Set(pauseAffectedAccountIds ?? [body.id]);
         accounts = accounts.map(account => (
           typeof account === "object" && account !== null && "id" in account
-            && (account.id === body.id || (body.id === "__main__" && "isMain" in account && account.isMain === true))
+            && (affectedIds.has(String(account.id)) || (affectedIds.has("__main__") && "isMain" in account && account.isMain === true))
             ? { ...account, paused: body.paused }
             : account
         ));
-        if (body.paused && activePinnedAccountId === body.id) activePinnedAccountId = null;
-        return { ok: true, json: async () => ({ activeCodexAccountId: pauseResponseActiveId }) } as unknown as Response;
+        if (body.paused && activePinnedAccountId && affectedIds.has(activePinnedAccountId)) activePinnedAccountId = null;
+        return { ok: true, json: async () => ({ activeCodexAccountId: pauseResponseActiveId, affectedAccountIds: pauseAffectedAccountIds }) } as unknown as Response;
       }
       if (path === "codex-auth/accounts/pause-exhausted") {
         const pausedIds = new Set(bulkPausedAccountIds);
@@ -344,6 +347,34 @@ test("pausing an account writes the persisted endpoint and updates shared state"
   expect(seen.current!.accounts[0]?.paused).toBe(true);
   expect(seen.current!.activeId).toBeNull();
 });
+
+for (const selectedId of ["__main__", "duplicate-login"]) {
+  test(`linked pause and resume update both cards before reload from ${selectedId}`, async () => {
+    accounts = [
+      { id: "a1", email: "main", isMain: true, paused: false, priority: 0, hasCredential: true, quota: null },
+      { id: "duplicate-login", email: "duplicate", isMain: false, paused: false, priority: 0, hasCredential: true, quota: null },
+      { id: "other-workspace", email: "other", isMain: false, paused: false, priority: 0, hasCredential: true, quota: null },
+    ];
+    activePinnedAccountId = "duplicate-login";
+    pauseAffectedAccountIds = ["__main__", "duplicate-login"];
+    const seen = await mountController();
+    let releaseReload!: () => void;
+    nextAccountsResponseGate = new Promise<void>(resolve => { releaseReload = resolve; });
+    try {
+      await act(async () => {
+        expect(await seen.current!.setAccountPaused(selectedId, true)).toEqual({ ok: true });
+      });
+      expect(seen.current!.accounts.map(account => account.paused)).toEqual([true, true, false]);
+      expect(seen.current!.activePinnedId).toBeNull();
+      await act(async () => {
+        expect(await seen.current!.setAccountPaused(selectedId === "__main__" ? "duplicate-login" : "__main__", false)).toEqual({ ok: true });
+      });
+      expect(seen.current!.accounts.map(account => account.paused)).toEqual([false, false, false]);
+    } finally {
+      await act(async () => { releaseReload(); await new Promise(resolve => setTimeout(resolve, 30)); });
+    }
+  });
+}
 
 test("pausing the main sentinel updates its distinct account row before reload", async () => {
   const seen = await mountController();

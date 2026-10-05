@@ -539,9 +539,16 @@ export function useCodexAccountPool(apiBase: string, enabled = true): CodexAccou
       });
       if (!response.ok) return { ok: false, reason: "request" } as const;
       const raw = await response.json().catch(() => ({}));
-      const result = (raw && typeof raw === "object" ? raw : {}) as { activeCodexAccountId?: string | null };
+      const result = (raw && typeof raw === "object" ? raw : {}) as {
+        activeCodexAccountId?: string | null;
+        affectedAccountIds?: unknown;
+      };
+      const affectedIds = new Set(Array.isArray(result.affectedAccountIds)
+        ? result.affectedAccountIds.filter((value): value is string => typeof value === "string")
+        : [id]);
+      affectedIds.add(id);
       setAccounts(current => current.map(account => (
-        account.id === id || (id === "__main__" && account.isMain)
+        affectedIds.has(account.id) || (affectedIds.has("__main__") && account.isMain)
           ? { ...account, paused }
           : account
       )));
@@ -555,9 +562,9 @@ export function useCodexAccountPool(apiBase: string, enabled = true): CodexAccou
       }
       // Deliberately NOT cross-gated against the switch and order writes, even though
       // pausing the pinned account also releases the pin. This edge is conditional on
-      // the pin still naming `id`, which makes it order-robust: whichever response
+      // the pin still naming an affected account, which makes it order-robust: whichever response
       // lands last, the client agrees with the server.
-      if (paused) setActivePinnedId(current => current === id ? null : current);
+      if (paused) setActivePinnedId(current => current !== null && affectedIds.has(current) ? null : current);
       void load();
       return { ok: true } as const;
     } catch {

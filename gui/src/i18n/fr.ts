@@ -2375,7 +2375,7 @@ export const fr: Record<TKey, string> = {
   "codexAuth.resumeSucceeded": "{email} est de nouveau disponible dans le groupe",
   "codexAuth.pauseFailed": "Impossible de suspendre {email}. Aucune modification apportée.",
   "codexAuth.resumeFailed": "Impossible de réactiver {email}. Aucune modification apportée.",
-  "codexAuth.pausedHint": "Exclu du changement automatique, des nouvelles tentatives, de la récupération après délai et de la sélection manuelle jusqu’à sa réactivation.",
+  "codexAuth.pausedHint": "Exclu du changement automatique, des nouvelles tentatives, de la récupération après délai et de la sélection manuelle jusqu’à sa réactivation. La pause et la reprise manuelles mettent aussi à jour les entrées principales et du pool existantes du même compte et espace de travail.",
   "codexAuth.creditsAfterLimit": "Utiliser les crédits après la limite",
   "codexAuth.creditsAfterLimitHint": "Désactivé par défaut : un compte dont une fenêtre d’utilisation atteint 100 % est remplacé jusqu’à sa réinitialisation, et ses crédits ChatGPT ne sont pas dépensés. Activez un compte pour qu’il continue avec ses crédits. Les nouveaux comptes démarrent désactivés.",
   "codexAuth.creditsAfterLimitAria": "Utiliser les crédits après la limite d’utilisation pour {email}",

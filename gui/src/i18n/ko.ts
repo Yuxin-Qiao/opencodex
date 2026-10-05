@@ -1881,7 +1881,7 @@ export const ko: Record<TKey, string> = {
   "codexAuth.resumeSucceeded": "{email} 계정을 풀에서 다시 사용할 수 있습니다",
   "codexAuth.pauseFailed": "{email} 계정을 일시 중지하지 못했습니다. 변경 사항이 없습니다.",
   "codexAuth.resumeFailed": "{email} 계정을 재개하지 못했습니다. 변경 사항이 없습니다.",
-  "codexAuth.pausedHint": "재개할 때까지 자동 전환, 재시도, 쿨다운 복구 및 수동 선택에서 제외됩니다.",
+  "codexAuth.pausedHint": "재개할 때까지 자동 전환, 재시도, 쿨다운 복구 및 수동 선택에서 제외됩니다. 수동 일시 중지 및 재개는 같은 계정과 워크스페이스의 기존 기본 로그인 및 풀 항목에도 적용됩니다.",
   "codexAuth.creditsAfterLimit": "한도 도달 후 크레딧 사용",
   "codexAuth.creditsAfterLimitHint": "기본은 꺼짐입니다. 사용량이 100%에 도달한 계정은 리셋될 때까지 다른 계정으로 전환되어 ChatGPT 크레딧을 쓰지 않습니다. 켠 계정만 한도 이후에도 크레딧으로 계속 사용됩니다. 새로 추가한 계정은 꺼진 상태로 시작합니다.",
   "codexAuth.creditsAfterLimitAria": "{email} 계정의 한도 도달 후 크레딧 사용",

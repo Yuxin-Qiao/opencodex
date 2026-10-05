@@ -1854,7 +1854,7 @@ export const zh: Record<TKey, string> = {
   "codexAuth.resumeSucceeded": "{email} 已重新加入账号池",
   "codexAuth.pauseFailed": "无法暂停 {email}，未做任何更改。",
   "codexAuth.resumeFailed": "无法恢复 {email}，未做任何更改。",
-  "codexAuth.pausedHint": "恢复前不会参与自动切换、重试、冷却恢复或手动选择。",
+  "codexAuth.pausedHint": "恢复前不会参与自动切换、重试、冷却恢复或手动选择。 手动暂停或恢复会同步更新同一账号、同一工作区的主登录与池内已有入口。",
   "codexAuth.creditsAfterLimit": "达到上限后使用额度",
   "codexAuth.creditsAfterLimitHint": "默认关闭：用量窗口达到 100% 的账户会被切换出去，直到重置，不消耗其 ChatGPT 额度。打开某个账户后，它在达到上限后仍会使用额度继续工作。新账户默认关闭。",
   "codexAuth.creditsAfterLimitAria": "{email} 达到上限后使用额度",

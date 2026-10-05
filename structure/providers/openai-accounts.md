@@ -256,6 +256,18 @@ API-key and custom forward destinations preserve their metadata. See [Responses 
 
 Listener startup diagnostics follow [the runtime lifecycle contract](../runtime.md#lifecycle); malformed optional listener blocks follow [config loading](../config.md#config-surface).
 
+## Manual account pause and resume
+
+Manual pause/resume in `src/codex/auth-api/account-pause-group.ts` resolves existing native-main
+and pool entries by the full ChatGPT account/workspace id and normalized email. Matching entries
+share the operation; equal emails in different workspaces and different members of one workspace
+remain independent. Missing identity evidence never links entries. Main discovery, group publication
+and config persistence hold both native-main admission and the cross-process shared claim; a busy
+or unreadable main identity returns 503 without publishing a partial group. All matching exclusions
+are set before active-account reconciliation, so a duplicate cannot be selected as the fallback.
+The persisted format remains `pausedCodexAccountIds`; routing performs no extra identity reads.
+Automatic quota-protection and bulk-exhaustion policies retain their existing per-entry decisions.
+
 ## Automatic pool plan exclusions
 
 `src/codex/routing/selection.ts` applies optional `codexPool.excludedPlans` to both candidate selection and existing active/affined accounts. An all-excluded pool returns no automatic candidate, including preview and configured-account fallback. Native main remains exempt and unknown plans remain eligible. Explicit account-qualified routes retain pause, credential and entitlement checks while bypassing only this automatic policy.

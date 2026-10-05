@@ -2399,7 +2399,7 @@ export const tr: Record<TKey, string> = {
   "codexAuth.resumeSucceeded": "{email} tekrar havuza alındı",
   "codexAuth.pauseFailed": "{email} duraklatılamadı.",
   "codexAuth.resumeFailed": "{email} devam ettirilemedi.",
-  "codexAuth.pausedHint": "Devam ettirilene kadar otomatik seçimden hariç tutulur.",
+  "codexAuth.pausedHint": "Devam ettirilene kadar otomatik seçimden hariç tutulur. Elle duraklatma ve devam ettirme, aynı hesap ve çalışma alanının mevcut ana giriş ve havuz kayıtlarını da günceller.",
   "codexAuth.creditsAfterLimit": "Limitten sonra kredi kullan",
   "codexAuth.creditsAfterLimitHint": "Varsayılan olarak kapalı: kullanım penceresi %100’e ulaşan hesap sıfırlanana kadar otomatik seçim dışında kalır ve ChatGPT kredileri harcanmaz. Bir hesabın kredileriyle çalışmaya devam etmesi için bu ayarı açın. Yeni hesaplar kapalı başlar.",
   "codexAuth.creditsAfterLimitAria": "{email} için kullanım limitinden sonra kredi kullan",
