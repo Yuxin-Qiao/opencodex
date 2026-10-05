@@ -261,8 +261,8 @@ Listener startup diagnostics follow [the runtime lifecycle contract](../runtime.
 Manual pause/resume in `src/codex/auth-api/account-pause-group.ts` resolves existing native-main
 and pool entries by the full ChatGPT account/workspace id and normalized email. Matching entries
 share the operation; equal emails in different workspaces and different members of one workspace
-remain independent. Missing identity evidence never links entries. Main discovery, group publication
-Main's ID and access tokens must agree on both workspace and member email; a disagreement returns 503.
+remain independent. Missing identity evidence never links entries. Main's ID and access tokens must
+agree on both workspace and member email; a disagreement returns 503. Main discovery, group publication
 and config persistence hold native-main admission and, when the home exists, the cross-process
 shared claim. Main reads use the claim's pinned auth path and bounded regular-file reader. A positively
 absent home or valid API-key-only envelope has no ChatGPT main identity: Pool-only grouping proceeds,
