@@ -133,6 +133,8 @@ Exemple de structure abrégée :
 
 L’objet réel comprend également `listen` (port, nom d’hôte, source du runtime et de la configuration), les diagnostics de chargement de la configuration et les diagnostics du plug-in Codex intégré. Le schéma JSON est uniquement extensible : de futures versions peuvent ajouter des champs, mais les champs existants doivent rester stables. Les clés d’API, jetons OAuth, en-têtes d’autorisation, contenus de requêtes, adresses électroniques et identités de compte en sont volontairement exclus.
 
+La lecture en direct laisse la sonde de service à durée limitée se terminer : jusqu’à 6,5 secondes sous macOS/Linux et 16,5 secondes sous Windows lorsque le cache de diagnostic est vide ou expiré. Les lectures depuis le cache renvoient rapidement leur résultat. En cas de dépassement du délai, la commande se replie toujours sur les diagnostics locaux ; un `/healthz` sain ne suffit pas à confirmer que la protection contre les redémarrages est active.
+
 ### `ocx health [--json]`
 
 Vérifie l’identité du proxy actif. La sortie destinée aux utilisateurs indique le PID et le port ; `--json` produit `{ok, pid, port}`. La commande renvoie 0 uniquement lorsque le proxy est sain, et 1 dans le cas contraire, ce qui permet de l’utiliser comme sonde de service.

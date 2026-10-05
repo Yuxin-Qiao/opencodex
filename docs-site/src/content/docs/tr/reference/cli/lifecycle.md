@@ -189,6 +189,12 @@ gelecekteki sürümler alanlar ekleyebilir, ancak mevcut alanlar kararlı
 kalmalıdır. API anahtarlarını, OAuth belirteçlerini, yetkilendirme başlıklarını,
 istek içeriğini, e-postaları ve hesap kimliklerini kasıtlı olarak hariç tutar.
 
+Canlı okuma, süre sınırı olan servis probunun tamamlanmasını bekler: tanılama
+önbelleği boşsa veya süresi dolmuşsa macOS/Linux'ta en fazla 6,5 saniye,
+Windows'ta en fazla 16,5 saniye. Önbellekten yapılan okumalar hızla sonuç döndürür.
+Zaman aşımında yine yerel tanılamalara dönülür; yalnızca `/healthz` sağlıklı diye
+yeniden başlatma korumasının etkin olduğu doğrulanamaz.
+
 ### `ocx health [--json]`
 
 Canlı proxy'yi kimlik kontrolünden geçirin. İnsan çıktısı PID/port bildirir;

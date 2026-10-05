@@ -126,6 +126,8 @@ ocx status --json
 
 實際物件還包含 `listen`（連接埠、主機名稱、runtime/config 來源）、設定載入診斷，以及 bundled Codex plugin 診斷。JSON schema 為附加式：未來版本可能新增欄位，但既有欄位應保持穩定。它刻意排除 API 金鑰、OAuth token、授權標頭、請求內容、電子郵件與帳號身分。
 
+即時讀取會等待有時間上限的服務探測完成：診斷快取為空或已過期時，macOS/Linux 最多等待 6.5 秒，Windows 最多等待 16.5 秒。從快取讀取的結果會迅速回傳。逾時仍會退回本機診斷；僅憑 `/healthz` 健康，無法確認重新啟動保護已生效。
+
 ### `ocx health [--json]`
 
 對即時代理進行身分檢查。人類可讀輸出回報 PID/連接埠；`--json` 輸出 `{ok, pid, port}`。此指令僅在健康時離開 0，否則離開 1，使其適合服務探測。
