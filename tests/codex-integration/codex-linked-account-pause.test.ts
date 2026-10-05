@@ -15,7 +15,7 @@ import { acquireNativeMainProfileDrain, resetLifecycleDrainStateForTests } from 
 import { setAsyncIcaclsRunnerForTests, setIcaclsRunnerForTests } from "../../src/lib/windows-secret-acl";
 import { removeTreeWithRetry } from "../helpers/remove-tree";
 import { withNativeMainExclusiveClaim } from "../../src/codex/native-main-claim";
-import { resolveNativeProfileContext } from "../../src/codex/native-profile-store";
+import { MAX_AUTH_BYTES, resolveNativeProfileContext } from "../../src/codex/native-profile-store";
 
 let TEST_DIR: string;
 let TEST_CODEX_HOME: string;
@@ -211,4 +211,99 @@ test("manual pause matches the selected workspace instead of the first organizat
   const response = await handleCodexAuthAPI(req, new URL(req.url), config);
   expect(response!.status).toBe(200);
   expect(new Set(config.pausedCodexAccountIds)).toEqual(new Set([MAIN_CODEX_ACCOUNT_ID, "selected-login"]));
+});
+
+for (const mainState of ["missing-home", "api-key-only", "api-key-null-tokens"] as const) {
+  test(`manual pause and resume group Pool-only identities with ${mainState}`, async () => {
+    const config = makeConfig();
+    if (mainState === "missing-home") {
+      process.env.CODEX_HOME = join(TEST_DIR, "absent-codex-home");
+    } else {
+      writeFileSync(join(TEST_CODEX_HOME, "auth.json"), JSON.stringify({
+        OPENAI_API_KEY: "test-only-api-key",
+        ...(mainState === "api-key-null-tokens" ? { auth_mode: "api_key", tokens: null } : {}),
+      }));
+    }
+    seedPoolAccount(config, { id: "pool-only", email: "same@example.test", chatgptAccountId: "pool-scope" });
+    seedPoolAccount(config, { id: "pool-copy", email: "SAME@example.test", chatgptAccountId: "pool-scope" });
+    seedPoolAccount(config, { id: "pool-other", email: "same@example.test", chatgptAccountId: "other-scope" });
+    for (const paused of [true, false]) {
+      const req = new Request("http://localhost/api/codex-auth/accounts/pause", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: "pool-only", paused }),
+      });
+      const response = await handleCodexAuthAPI(req, new URL(req.url), config);
+      expect(response!.status).toBe(200);
+      expect(new Set((await response!.json()).affectedAccountIds)).toEqual(new Set(["pool-only", "pool-copy"]));
+      expect(new Set(config.pausedCodexAccountIds)).toEqual(new Set(paused ? ["pool-only", "pool-copy"] : []));
+      expect(loadConfig().pausedCodexAccountIds).toEqual(config.pausedCodexAccountIds);
+    }
+    // Main remains addressable by id but has no identity to link to the Pool.
+    const req = new Request("http://localhost/api/codex-auth/accounts/pause", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: MAIN_CODEX_ACCOUNT_ID, paused: true }),
+    });
+    const response = await handleCodexAuthAPI(req, new URL(req.url), config);
+    expect(response!.status).toBe(200);
+    expect((await response!.json()).affectedAccountIds).toEqual([MAIN_CODEX_ACCOUNT_ID]);
+    expect(config.pausedCodexAccountIds).toEqual([MAIN_CODEX_ACCOUNT_ID]);
+    if (mainState === "missing-home") expect(existsSync(process.env.CODEX_HOME!)).toBe(false);
+  });
+}
+
+for (const mainState of ["oversized", "directory", "invalid-home", "api-key-malformed-tokens", "api-key-chatgpt-mode"] as const) {
+  test(`manual pause rejects ${mainState} before publication`, async () => {
+    const config = makeConfig({ activeCodexAccountId: "pause-unsafe" });
+    seedPoolAccount(config, { id: "pause-unsafe", email: "unsafe@example.test" });
+    setCodexAccountPin(config, "pause-unsafe");
+    const before = JSON.stringify(config);
+    const authPath = join(TEST_CODEX_HOME, "auth.json");
+    if (mainState === "directory") mkdirSync(authPath);
+    else if (mainState === "invalid-home") {
+      const homePath = join(TEST_DIR, "non-directory-home");
+      writeFileSync(homePath, "not-a-directory");
+      process.env.CODEX_HOME = homePath;
+    } else if (mainState === "oversized") {
+      // Valid ChatGPT JSON would succeed with the old unbounded reader.
+      writeFileSync(authPath, JSON.stringify({
+        tokens: { access_token: "opaque-main", account_id: "main-scope" },
+        padding: " ".repeat(MAX_AUTH_BYTES),
+      }));
+    } else {
+      writeFileSync(authPath, JSON.stringify({
+        OPENAI_API_KEY: "test-only-api-key",
+        ...(mainState === "api-key-malformed-tokens" ? { tokens: {} } : { auth_mode: "chatgpt" }),
+      }));
+    }
+    const req = new Request("http://localhost/api/codex-auth/accounts/pause", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: "pause-unsafe", paused: true }),
+    });
+    const response = await handleCodexAuthAPI(req, new URL(req.url), config);
+    expect(response!.status).toBe(503);
+    expect(response!.headers.get("Retry-After")).toBe("1");
+    expect(JSON.stringify(config)).toBe(before);
+    expect(config.pausedCodexAccountIds).toBeUndefined();
+    expect(pinnedCodexAccountId(config)).toBe("pause-unsafe");
+    expect(existsSync(join(TEST_DIR, "config.json"))).toBe(false);
+  });
+}
+
+test("Pool-only pause with an absent home still respects native-main admission", async () => {
+  process.env.CODEX_HOME = join(TEST_DIR, "absent-codex-home");
+  const config = makeConfig();
+  seedPoolAccount(config, { id: "absent-drain", email: "drain@example.test" });
+  const drain = acquireNativeMainProfileDrain("absent-home-pause-test");
+  try {
+    const req = new Request("http://localhost/api/codex-auth/accounts/pause", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: "absent-drain", paused: true }),
+    });
+    const response = await handleCodexAuthAPI(req, new URL(req.url), config);
+    expect(response!.status).toBe(503);
+    expect(config.pausedCodexAccountIds).toBeUndefined();
+    expect(existsSync(join(TEST_DIR, "config.json"))).toBe(false);
+  } finally {
+    drain.release();
+  }
 });

@@ -262,9 +262,12 @@ Manual pause/resume in `src/codex/auth-api/account-pause-group.ts` resolves exis
 and pool entries by the full ChatGPT account/workspace id and normalized email. Matching entries
 share the operation; equal emails in different workspaces and different members of one workspace
 remain independent. Missing identity evidence never links entries. Main discovery, group publication
-and config persistence hold both native-main admission and the cross-process shared claim; a busy
-or unreadable main identity returns 503 without publishing a partial group. All matching exclusions
-are set before active-account reconciliation, so a duplicate cannot be selected as the fallback.
+and config persistence hold native-main admission and, when the home exists, the cross-process
+shared claim. Main reads use the claim's pinned auth path and bounded regular-file reader. A positively
+absent home or valid API-key-only envelope has no ChatGPT main identity: Pool-only grouping proceeds,
+and main remains independently addressable by id. An inaccessible existing home, busy claim, malformed
+credentials, or unreadable/nonregular/oversized auth file returns 503 before any group publication.
+All matching exclusions are set before active-account reconciliation, so a duplicate cannot be the fallback.
 The persisted format remains `pausedCodexAccountIds`; routing performs no extra identity reads.
 Automatic quota-protection and bulk-exhaustion policies retain their existing per-entry decisions.
 

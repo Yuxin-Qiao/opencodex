@@ -1,10 +1,16 @@
+import { lstatSync } from "node:fs";
 import type { OcxConfig } from "../../types";
 import { inspectChatGptDomainClaim, extractEmail } from "../../oauth/chatgpt";
 import { MAIN_CODEX_ACCOUNT_ID, isSelectableCodexPoolAccount } from "../account-id";
 import { readCodexTokensResult } from "../auth-collision";
+import type { CodexTokenReadResult } from "../auth-collision";
 import { getCodexAccountCredential } from "../account-store";
+import { resolveCodexHomeDir } from "../home";
 import { tryAcquireNativeMainProfileClaim } from "../native-main-admission";
-import { isNativeMainClaimUnavailable, nativeMainProfileBusyResponse, withNativeMainCredentialClaim } from "./http";
+import { withNativeMainSharedClaim } from "../native-main-claim";
+import { resolveNativeProfileContext } from "../native-profile-store";
+import { NativeProfileError } from "../native-profile-types";
+import { isNativeMainClaimUnavailable, nativeMainProfileBusyResponse } from "./http";
 
 type AccountIdentity = { accountId: string; email: string };
 
@@ -16,8 +22,7 @@ function identity(accountId: unknown, email: unknown): AccountIdentity | undefin
 }
 
 /** Resolve only existing entries, under native-main ownership, never on the request path. */
-function linkedAccountIds(config: OcxConfig, selectedId: string): string[] | undefined {
-  const main = readCodexTokensResult();
+function linkedAccountIds(config: OcxConfig, selectedId: string, main: CodexTokenReadResult): string[] | undefined {
   // Unknown main identity must not produce a successful but incomplete pause.
   if (main.status === "unreadable" || main.status === "invalid") return undefined;
   const identities = new Map<string, AccountIdentity | undefined>();
@@ -49,7 +54,7 @@ function linkedAccountIds(config: OcxConfig, selectedId: string): string[] | und
   ))];
 }
 
-/** Keep discovery, publication and persistence inside the same physical-main claim. */
+/** Hold admission throughout; claim the physical main whenever its home exists. */
 export async function withCodexAccountPauseGroup(
   config: OcxConfig,
   selectedId: string,
@@ -58,12 +63,27 @@ export async function withCodexAccountPauseGroup(
   const lease = tryAcquireNativeMainProfileClaim();
   if (!lease) return nativeMainProfileBusyResponse();
   try {
-    return await withNativeMainCredentialClaim(async () => {
-      const ids = linkedAccountIds(config, selectedId);
+    const codexHome = resolveCodexHomeDir();
+    try {
+      lstatSync(codexHome);
+    } catch (error) {
+      // Only positive absence permits Pool-only publication. A dangling symlink or access
+      // failure is not absence; do not create a home just to coordinate an unused main login.
+      if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") return nativeMainProfileBusyResponse();
+      const ids = linkedAccountIds(config, selectedId, { status: "missing" });
+      return ids ? publish(ids) : nativeMainProfileBusyResponse();
+    }
+    const context = resolveNativeProfileContext({ codexHome });
+    return await withNativeMainSharedClaim(context, async () => {
+      const main = readCodexTokensResult(context.authPath, { bounded: true, allowApiKeyOnly: true });
+      const ids = linkedAccountIds(config, selectedId, main);
       return ids ? publish(ids) : nativeMainProfileBusyResponse();
     });
   } catch (error) {
-    if (isNativeMainClaimUnavailable(error)) return nativeMainProfileBusyResponse();
+    if (isNativeMainClaimUnavailable(error)
+      || (error instanceof NativeProfileError && error.code === "CODEX_HOME_UNAVAILABLE")) {
+      return nativeMainProfileBusyResponse();
+    }
     throw error;
   } finally {
     lease.release();
