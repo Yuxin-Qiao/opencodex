@@ -22,7 +22,7 @@ export interface CodexTokens {
  */
 export type CodexTokenReadResult =
   | { status: "ok"; tokens: CodexTokens }
-  | { status: "missing" | "invalid" | "unreadable" | "api-key-only" };
+  | { status: "missing" | "invalid" | "unreadable" };
 
 function hasErrnoCode(error: unknown, code: string): boolean {
   return typeof error === "object" && error !== null && "code" in error
@@ -36,12 +36,11 @@ function hasErrnoCode(error: unknown, code: string): boolean {
  * `bounded` opts into the native-profile bounded reader (regular file, size-capped, no-follow,
  * non-blocking) for startup observation paths that run inside the owner claim; bounded violations
  * classify as `unreadable`. Legacy callers keep the unbounded read.
- * `allowApiKeyOnly` distinguishes a valid non-ChatGPT login without changing legacy callers.
  * Never returns or logs the raw error or any token material.
  */
 export function readCodexTokensResult(
   authPath = join(resolveCodexHomeDir(), "auth.json"),
-  options?: { bounded?: boolean; allowApiKeyOnly?: boolean },
+  options?: { bounded?: boolean },
 ): CodexTokenReadResult {
   let raw: string;
   try {
@@ -53,15 +52,8 @@ export function readCodexTokensResult(
   }
   try {
     const j = JSON.parse(raw) as {
-      auth_mode?: unknown;
-      OPENAI_API_KEY?: unknown;
-      tokens?: { access_token?: string; account_id?: string; id_token?: string } | null;
+      tokens?: { access_token?: string; account_id?: string; id_token?: string };
     };
-    if (options?.allowApiKeyOnly === true && j && typeof j === "object" && !Array.isArray(j)
-      && j.tokens == null && (j.auth_mode === undefined || j.auth_mode === "api_key")
-      && typeof j.OPENAI_API_KEY === "string" && j.OPENAI_API_KEY.trim()) {
-      return { status: "api-key-only" };
-    }
     if (!j?.tokens?.access_token) return { status: "invalid" };
     return {
       status: "ok",

@@ -8,11 +8,29 @@ import { getCodexAccountCredential } from "../account-store";
 import { resolveCodexHomeDir } from "../home";
 import { tryAcquireNativeMainProfileClaim } from "../native-main-admission";
 import { withNativeMainSharedClaim } from "../native-main-claim";
-import { resolveNativeProfileContext } from "../native-profile-store";
+import { MAX_AUTH_BYTES, readBounded, resolveNativeProfileContext } from "../native-profile-store";
 import { NativeProfileError } from "../native-profile-types";
 import { isNativeMainClaimUnavailable, nativeMainProfileBusyResponse } from "./http";
 
 type AccountIdentity = { accountId: string; email: string };
+type MainAuth = CodexTokenReadResult | { status: "api-key-only" };
+
+/** A valid API-key login has no ChatGPT identity; anything else unreadable stays unknown. */
+function readMainAuth(authPath: string): MainAuth {
+  const main = readCodexTokensResult(authPath, { bounded: true });
+  if (main.status !== "invalid") return main;
+  try {
+    const j: unknown = JSON.parse(readBounded(authPath, MAX_AUTH_BYTES).toString("utf-8"));
+    if (j === null || typeof j !== "object" || Array.isArray(j)) return main;
+    const envelope = j as { auth_mode?: unknown; OPENAI_API_KEY?: unknown; tokens?: unknown };
+    const apiKeyOnly = envelope.tokens == null
+      && (envelope.auth_mode === undefined || envelope.auth_mode === "api_key")
+      && typeof envelope.OPENAI_API_KEY === "string" && envelope.OPENAI_API_KEY.trim() !== "";
+    return apiKeyOnly ? { status: "api-key-only" } : main;
+  } catch {
+    return main;
+  }
+}
 
 function identity(accountId: unknown, email: unknown): AccountIdentity | undefined {
   const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : undefined;
@@ -22,7 +40,7 @@ function identity(accountId: unknown, email: unknown): AccountIdentity | undefin
 }
 
 /** Resolve only existing entries, under native-main ownership, never on the request path. */
-function linkedAccountIds(config: OcxConfig, selectedId: string, main: CodexTokenReadResult): string[] | undefined {
+function linkedAccountIds(config: OcxConfig, selectedId: string, main: MainAuth): string[] | undefined {
   // Unknown main identity must not produce a successful but incomplete pause.
   if (main.status === "unreadable" || main.status === "invalid") return undefined;
   const identities = new Map<string, AccountIdentity | undefined>();
@@ -79,7 +97,7 @@ export async function withCodexAccountPauseGroup(
     }
     const context = resolveNativeProfileContext({ codexHome });
     return await withNativeMainSharedClaim(context, async () => {
-      const main = readCodexTokensResult(context.authPath, { bounded: true, allowApiKeyOnly: true });
+      const main = readMainAuth(context.authPath);
       const ids = linkedAccountIds(config, selectedId, main);
       return ids ? publish(ids) : nativeMainProfileBusyResponse();
     });
