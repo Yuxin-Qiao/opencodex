@@ -245,6 +245,15 @@ describe("trusted caller namespaces", () => {
 const canonical = { adapter: "openai-responses", authMode: "forward", baseUrl: "https://chatgpt.com/backend-api/codex" } as const;
 
 describe("native cache session aliases", () => {
+  test("session-id wins over thread-id and metadata while preserving caller headers", () => {
+    const headers = new Headers({ "session-id": "first-session", "thread-id": "second-session" });
+    const forwarded = withClaudeNativeSession(headers, canonical, "third-session");
+    expect(forwarded.get("session_id")).toBe("first-session");
+    expect(forwarded.get("session-id")).toBe("first-session");
+    expect(forwarded.get("thread-id")).toBe("second-session");
+    expect(headers.has("session_id")).toBe(false);
+  });
+
   test("upstream normalization preserves explicit aliases without inventing an identity", () => {
     for (const alias of ["session-id", "thread-id"]) {
       const headers = new Headers({ [alias]: SESSION, originator: "example-agent" });

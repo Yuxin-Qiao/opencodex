@@ -192,11 +192,16 @@ timer, turn, and translator ownership are released through the existing lifecycl
 
 ## HTTP caller conversation identity
 
-Canonical ChatGPT Responses egress additionally normalizes a safe caller `session-id`, then
-`thread-id`, to absent `session_id` in the selected auth headers. Original ingress headers,
-principal/affinity computation and noncanonical destinations remain unchanged; empty or invalid
-explicit aliases suppress weaker Claude metadata identity. No originator or cohort-derived
-conversation identity is invented.
+Canonical ChatGPT Responses egress additionally normalizes caller aliases in the selected auth
+headers. An explicit `session_id` wins, even when empty; otherwise, the first present alias among
+`session-id`, then `thread-id`, supplies `session_id` if its value is safe. An empty or invalid
+winning alias suppresses weaker identity when it reaches Responses dispatch. The Claude Messages
+and Chat Completions bridges first drop empty header values, so there an empty `session-id` lets
+a valid `thread-id` win. The Claude metadata-derived session applies only when no canonical header
+or surviving alias remains. Aliases keep their original names on the wire; their validated raw
+caller values are forwarded like an explicit `session_id`, without principal scoping as used for
+promoted `x-session-id`. Original ingress headers and affinity computation are unchanged, as are
+custom and API-key destinations. No identity or originator is invented for marker-free requests.
 
 `src/server/caller-session-identity.ts` promotes validated `x-session-id` on HTTP Responses and Messages before turn admission in `src/server/index/serve-options.ts`. Explicit `session_id`, `session-id`, or `thread-id` presence wins, including empty values; managed Grok promotion runs first on Responses. The trimmed marker must start with an ASCII letter/digit, contain only letters, digits, dots, underscores, colons or hyphens, and stay within 128 characters. Loopback admission keeps it; authenticated admission scopes it with the trusted credential principal into an opaque SHA-256 identifier and skips promotion without that principal. Bodies and abort signals are preserved, and the original Request owns Bun timeout lookup. This provides continuity, not authorization or guaranteed cache hits. Existing explicit/Grok identities, Chat Completions, WebSocket frames, compact and count_tokens retain their behavior.
 
@@ -204,8 +209,10 @@ conversation identity is invented.
 
 `src/server/chat-completions.ts` preserves caller `prompt_cache_key` on the Chat-to-Responses
 bridge. Canonical ChatGPT Responses forwarding preserves `session_id`, `session-id`, `thread-id`
-and per-request `x-client-request-id` under their original names. Missing conversation identity
-stays missing; a shared prefix/cache key is not converted into a session. The direct-mode
+and per-request `x-client-request-id` under their original names, and additionally fills an absent
+`session_id` from the first present alias, `session-id` then `thread-id`, when safe, using the
+[precedence and validation rules above](#http-caller-conversation-identity). Missing conversation
+identity stays missing; a shared prefix/cache key is not converted into a session. The direct-mode
 outbound contract is covered by `tests/responses/chat-conversation-affinity.test.ts`.
 This transport contract does not prove a client's emission, Pool selection stability or cache hits.
 

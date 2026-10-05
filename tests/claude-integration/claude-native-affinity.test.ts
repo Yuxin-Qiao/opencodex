@@ -98,7 +98,7 @@ describe("Claude final canonical native affinity after a Go preliminary pick", (
           expect(response.status).toBe(200);
           const wire = seen.at(-1)!;
           expect(wire.url).toBe("https://chatgpt.com/backend-api/codex/responses");
-          expect(wire.headers.get("session_id")).toBe(explicit ? explicit === "session_id" ? "caller-conversation" : null : expectedSession);
+          expect(wire.headers.get("session_id")).toBe(explicit ? "caller-conversation" : expectedSession);
           if (explicit) expect(wire.headers.get(explicit)).toBe("caller-conversation");
           expect(wire.headers.has("x-opencode-session")).toBe(false);
           expect(wire.body.prompt_cache_key).toBe(key);
