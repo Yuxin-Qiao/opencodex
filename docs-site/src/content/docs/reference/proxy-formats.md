@@ -188,12 +188,13 @@ Use distinct markers for distinct conversations. This preserves conversation con
 for downstream consumers, but does not guarantee an upstream cache hit or measured savings.
 Chat Completions, WebSocket frames, compact, and count_tokens do not use this promotion.
 
-On canonical ChatGPT-backed Responses dispatch, an explicit `session_id` wins, even when empty.
-Otherwise, the first present alias among `session-id`, then `thread-id`, supplies `session_id`
-if its value is safe. An empty or invalid winning alias suppresses weaker identity when it
-reaches Responses dispatch. The Claude Messages and Chat Completions bridges first drop empty
-header values, so there an empty `session-id` lets a valid `thread-id` win. The Claude
-metadata-derived session applies only when no canonical header or surviving alias remains.
+On canonical ChatGPT-backed Responses dispatch, a non-empty explicit `session_id` wins.
+Otherwise, the first non-empty alias among `session-id`, then `thread-id`, supplies
+`session_id` if its value is safe; an invalid winning alias suppresses weaker identity.
+Empty header values are dropped before this step on every path (Responses auth header
+selection and the Claude Messages and Chat Completions bridges), so an empty header counts as
+absent: an empty `session-id` lets a valid `thread-id` win. The Claude metadata-derived
+session applies only when no non-empty canonical header or alias remains.
 Aliases keep their original names on the wire; their validated raw caller values are forwarded
 like an explicit `session_id`, without the principal scoping used for promoted `x-session-id`.
 This egress conversion does not change ingress affinity. Custom and API-key destinations are

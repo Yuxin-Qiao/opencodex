@@ -193,12 +193,13 @@ timer, turn, and translator ownership are released through the existing lifecycl
 ## HTTP caller conversation identity
 
 Canonical ChatGPT Responses egress additionally normalizes caller aliases in the selected auth
-headers. An explicit `session_id` wins, even when empty; otherwise, the first present alias among
-`session-id`, then `thread-id`, supplies `session_id` if its value is safe. An empty or invalid
-winning alias suppresses weaker identity when it reaches Responses dispatch. The Claude Messages
-and Chat Completions bridges first drop empty header values, so there an empty `session-id` lets
-a valid `thread-id` win. The Claude metadata-derived session applies only when no canonical header
-or surviving alias remains. Aliases keep their original names on the wire; their validated raw
+headers. A non-empty explicit `session_id` wins; otherwise, the first non-empty alias among
+`session-id`, then `thread-id`, supplies `session_id` if its value is safe, and an invalid
+winning alias suppresses weaker identity. Empty values are dropped before this step on every path
+(`materializeCodexUpstreamAuth` in `src/codex/auth-context.ts` and the Claude Messages and Chat
+Completions bridges), so an empty header counts as absent and an empty `session-id` lets a valid
+`thread-id` win. The Claude metadata-derived session applies only when no non-empty canonical
+header or alias remains. Aliases keep their original names on the wire; their validated raw
 caller values are forwarded like an explicit `session_id`, without principal scoping as used for
 promoted `x-session-id`. Original ingress headers and affinity computation are unchanged, as are
 custom and API-key destinations. No identity or originator is invented for marker-free requests.

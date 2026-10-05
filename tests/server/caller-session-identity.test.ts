@@ -265,15 +265,24 @@ describe("native cache session aliases", () => {
     }
   });
 
-  test("explicit presence, including empty values, wins and unsafe aliases stay unpromoted", () => {
-    for (const value of ["", "native-session"]) {
-      const headers = new Headers({ session_id: value, "session-id": SESSION });
-      expect(withClaudeNativeSession(headers, canonical, "metadata-session")).toBe(headers);
-    }
-    for (const value of ["", "invalid session", "a".repeat(129)]) {
+  test("a non-empty explicit header wins and unsafe aliases stay unpromoted", () => {
+    const explicit = new Headers({ session_id: "native-session", "session-id": SESSION });
+    expect(withClaudeNativeSession(explicit, canonical, "metadata-session")).toBe(explicit);
+    for (const value of ["invalid session", "a".repeat(129)]) {
       const headers = new Headers({ "session-id": value, "thread-id": SESSION });
       expect(withClaudeNativeSession(headers, canonical, "metadata-session")).toBe(headers);
     }
+  });
+
+  test("empty values count as absent, as in upstream auth header selection", () => {
+    for (const headers of [
+      new Headers({ session_id: "", "session-id": SESSION }),
+      new Headers({ "session-id": "", "thread-id": SESSION }),
+    ]) {
+      expect(withClaudeNativeSession(headers, canonical, "metadata-session").get("session_id")).toBe(SESSION);
+    }
+    const emptyOnly = new Headers({ "session-id": "" });
+    expect(withClaudeNativeSession(emptyOnly, canonical, "metadata-session").get("session_id")).toBe("metadata-session");
   });
 
   test("keyed/custom destinations and identity-free requests remain unchanged", () => {
