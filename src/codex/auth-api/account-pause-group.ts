@@ -38,7 +38,11 @@ function linkedAccountIds(config: OcxConfig, selectedId: string, main: CodexToke
     // organizations[] describes memberships, not the selected workspace. Never use its first row.
     const accountId = tokens.account_id.trim() || claimIds[0];
     if (claimIds.some(claim => claim !== accountId)) return undefined;
-    identities.set(MAIN_CODEX_ACCOUNT_ID, identity(accountId, extractEmail(tokens.id_token, tokens.access_token)));
+    // Both tokens must name the same member; otherwise the bearer's identity is unknown.
+    const emails = new Set([extractEmail(tokens.id_token), extractEmail(undefined, tokens.access_token)]
+      .flatMap(email => email?.trim() ? [email.trim().toLowerCase()] : []));
+    if (emails.size > 1) return undefined;
+    identities.set(MAIN_CODEX_ACCOUNT_ID, identity(accountId, [...emails][0]));
   }
   for (const account of config.codexAccounts ?? []) {
     if (!isSelectableCodexPoolAccount(account)) continue;

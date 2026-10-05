@@ -195,6 +195,24 @@ test("manual pause refuses conflicting native-main workspace claims", async () =
   expect(config.pausedCodexAccountIds).toBeUndefined();
 });
 
+test("manual pause refuses main tokens that name different members of one workspace", async () => {
+  const config = makeConfig();
+  const token = (email: string) => `header.${Buffer.from(JSON.stringify({
+    email, chatgpt_account_id: "shared-scope",
+  })).toString("base64url")}.signature`;
+  writeFileSync(join(TEST_CODEX_HOME, "auth.json"), JSON.stringify({
+    tokens: { access_token: token("bob@example.test"), account_id: "shared-scope", id_token: token("alice@example.test") },
+  }));
+  seedPoolAccount(config, { id: "alice-login", email: "alice@example.test", chatgptAccountId: "shared-scope" });
+  const req = new Request("http://localhost/api/codex-auth/accounts/pause", {
+    method: "PUT", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: "alice-login", paused: true }),
+  });
+  const response = await handleCodexAuthAPI(req, new URL(req.url), config);
+  expect(response!.status).toBe(503);
+  expect(config.pausedCodexAccountIds).toBeUndefined();
+});
+
 test("manual pause matches the selected workspace instead of the first organization membership", async () => {
   const config = makeConfig();
   const idToken = `header.${Buffer.from(JSON.stringify({
