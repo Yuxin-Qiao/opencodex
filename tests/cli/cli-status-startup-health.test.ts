@@ -3,6 +3,7 @@ import { fetchLiveStartupHealth, selectStatusStartupHealth, statusServiceSummary
 import type { StartupHealth } from "../../src/codex/autostart-health";
 import { startupHealthProbeBudgetMs, startupHealthReadBudgetMs } from "../../src/codex/autostart-health";
 import { LOCAL_ATTESTATION_PROOF_HEADER, createLocalAttestationProof } from "../../src/lib/local-management-attestation";
+import type { fetchBoundLocalManagementRead } from "../../src/server/local-management-read-client";
 
 const LIVE = {
   pid: 4242,
@@ -68,6 +69,28 @@ describe("ocx status live startup health", () => {
       expect(startupHealthReadBudgetMs(platform)).toBeGreaterThan(startupHealthProbeBudgetMs(platform) + 500);
       expect(startupHealthReadBudgetMs(platform)).toBeLessThanOrEqual(16_500);
     }
+  });
+
+  test("the direct transport receives the reader deadline instead of its own 10-second default", async () => {
+    const attested = deps(startupPayload());
+    let timeoutMs: number | undefined;
+    let directFetchCalls = 0;
+    const fixture: Parameters<typeof fetchBoundLocalManagementRead>[2] = {
+      ...attested,
+      directFetch: async (_url, _init, io) => {
+        timeoutMs = io?.timeoutMs;
+        directFetchCalls += 1;
+        return attested.fetchImpl();
+      },
+    };
+    delete fixture.fetchImpl;
+    expect((await fetchLiveStartupHealth(LIVE, fixture))?.serviceViable).toBe(true);
+    expect(timeoutMs).toBe(startupHealthReadBudgetMs());
+    expect(directFetchCalls).toBe(1);
+
+    fixture.fetchImpl = attested.fetchImpl;
+    expect((await fetchLiveStartupHealth(LIVE, fixture))?.serviceViable).toBe(true);
+    expect(directFetchCalls).toBe(1);
   });
 
   test("waits for a cold attested service probe beyond the old 1.5-second deadline", async () => {
